@@ -1,0 +1,192 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Conner DiPaolo</title>
+  <meta name="description" content="Conner DiPaolo's Personal Website">
+  <meta name="author" content="Conner DiPaolo">
+
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS_CHTML' async></script>
+</head>
+
+<body>
+    <img src="../img/bikes.jpg" alt="On a bike trip in Washington State" class="sub-page-main-photo">
+    <div class="info-container">
+        <h1>Conner DiPaolo's Blog</h1>
+        <h2>Preprocessing Necessary for Fast, Accurate \(\mathsf{MIPS}\)</h2>
+
+        <p>\(\newcommand\u{\boldsymbol{u}}\newcommand\v{\boldsymbol{v}}\newcommand\A{\boldsymbol{A}}\newcommand\inner[1]{\langle #1 \rangle}\newcommand\R{\mathbb{R}}\newcommand\P{\mathbf{P}}\newcommand\E{\mathbf{E}}\newcommand\TV{\mathsf{TV}}\newcommand\e{\boldsymbol{e}}\newcommand\Bernoulli{\operatorname{Bernoulli}}\newcommand\a{\boldsymbol{a}}\newcommand\argmin{\operatorname*{arg\,min}}\)In the Maximum Inner Product Search (\(\mathsf{MIPS}\)) problem, we are given a collection of vectors \(\u_1,\u_2,\ldots,\u_n\in\R^d\) and a vector \(\v\in\R^d\), and asked to return an index \(i_\star\in[n]\) so that \(\inner{\v,\u_{i_\star}} = \max_{i\in[n]}\inner{\v,\u_i}\). Naively computing each inner product \(\inner{\v,\u_i}\) and reporting the maximizer takes \(\mathcal{O}(nd)\) floating point operations, which can be excessively large in certain circumstances, and so there has been much work in trying to reduce the runtime of this problem by either preprocessing or sub-sampling coordinates to get an approximate solution. For instance, Liu et al. [1] gave a randomized method which samples values \(\v_j\u_{ij}\) adaptively to give a solution \(\hat i_\star\) in \(\mathcal{O}(n\sqrt{d})\) time satisfying \(\inner{\v,\u_{\hat i_\star}} \geq \max_{i\in[n]}\inner{\v,\u_{i}} - d\epsilon\) with high probability. One might hope to give an approximate solution \(\hat i_\star\) satisfying the more reasonable relative error bound \(\inner{\v,\u_{\hat i_\star}} \geq (1-\epsilon)\max_{i\in[n]}\inner{\v,\u_i}\) without dimensional dependence in the error, but this post shows that is impossible: any potentially randomized and adaptive sampling-based algorithm to solve the \(\mathsf{MIPS}\) problem to \(\epsilon\)-relative error with failure probability \(\delta < 1/20\) must query \(\Omega(nd)\) coordinates \(\u_{ij}\). This lower bound holds even if the input vectors \(\u_1,\u_2,\ldots,\u_n,\v \in\{0,1\}^d\) are all binary.
+        </p>
+
+        <h2>Some Definitions</h2>
+
+        To start, we will formalize the notion of a \(\mathsf{MIPS}\) solver given in the summary above. In here and in the sequel, the dimension of the vectors \(\u_1,\u_2,\ldots,\u_n,\v\in\R^{d}\) is \(d\), and the number of queries we make to the matrix will be \(q\). 
+
+        <p><strong>Definition:</strong> [\(\mathsf{MIPS}\) Solver]
+            A \(\mathsf{MIPS}\) solver is a randomized algorithm for computing $$i_\star \in \argmin_{i\in[n]}\inner{\v,\u_i}$$ via access to the oracle \(\u_{ij}\). The algorithm \(h = (f, g, q)\) is specified by two functions and a number of queries to make. The algorithm maintains as state a set \(Q \subseteq [d]\times[n]\times\R\) of listed queries and their associated responses. Upon initialization, \(Q = \varnothing\) is empty. At each step \(k=1,2,\ldots,q\) of the algorithm we sample indices \((i,j) = f(Q)\) whose distribution is determined based on our state and update \(Q = Q \cup (i, j, \u_{ij})\). After step \(q\) of the algorithm, we output \(\hat i_\star = h(\u_1,\ldots,\u_n,\v) = g(Q)\).
+        </p>
+
+        A 'good' \(\mathsf{MIPS}\) solver is one which outputs small relative error with high probability after few queries \(q\).
+
+        <p><strong>Definition:</strong> 
+            An \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver is a \(\mathsf{MIPS}\) solver \(h\) which satisfies
+            \[
+                \P\bigl(\inner{\v,\u_{\hat i_\star}} \geq (1-\epsilon) \max_{i\in[n]} \inner{\v,\u_i}\bigr) \geq 1-\delta
+            \]
+            for <em>any</em> input vectors \(\u_1,\u_2,\ldots,\u_n,\v\in\R^d\) in some family. Usually we will take the family to be the set of all input vectors whose components are bounded in magnitude by some constant \(K\). The minimal number of queries \(q\) used to achieve this with-high-probability relative error condition is called the <em>sample</em> complexity of the \(\mathsf{MIPS}\) solver \(h\).
+        </p>
+
+        <h2>Bounds on a Randomized Algorithm's Failure Probability</h2>
+
+        Our proof of a lower bound on the sample complexity of any \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver proceeds by reducing that estimation problem to one of distinguishing whether a single sample came from one of two distributions. In this seriously morphed form, we have access to information theoretic results which guarantee that our testing procedure must fail with a certain probability, which will in turn give us a lower bound on our desired sample complexity.
+
+        As a first step towards this decision problem lower bound, we need to define the metric used within it.
+
+        <p><strong>Definition:</strong> [Total Variation Distance]
+            Let \(P\) and \(Q\) be probability measures defined on a sigma algebra \(\Sigma\subseteq2^\Omega\). The total variation distance between \(P\) and \(Q\) is defined to be
+            \[
+                d_{\TV}(P,Q) = \sup_{A\in \Sigma} |P(A) - Q(A)|,
+            \]
+            the maximal distance between the measures of a single event. We can also
+            write
+            \[
+                d_{\TV}(P,Q) = \frac{1}{2}\|dP-dQ\|_1
+            \]
+            whenever the Radon-Nikodym theorem gives us density functions \(dP\) and \(dQ\) for the respective measures.
+        </p>
+
+        The upcoming Lemma gives us the desired lower bound on the failure probability of a decision algorithm trying to distinguish a sample from \(P\) or \(Q\). We highlight that this result is not new, just that I could not find a proof explicly given anywhere. For a statement of this result elsewhere, see [2, Prop. 1].
+
+        <p><strong>Lemma 1:</strong>
+            Let \(P\) and \(Q\) be probability measures defined on a sigma algebra \(\Sigma\subseteq2^\Omega\). Suppose we are given a sample \(x\in\Omega\) which is taken from either \(P\) or \(Q\). Which distribution \(x\) comes from is chosen randomly with equal odds. The failure probability of any algorithm which takes in \(x\) and distinguishes whether it came from \(P\) or \(Q\) is at least \(\tfrac{1}{2} - \tfrac{1}{2}d_{\TV}(P,Q)\).
+        </p>
+
+        Note that this Lemma is trivial in the degenerate case that \(P=Q\), since then the sample doesn't give any information and the best we can do is guess. This has an error probability of \(1/2\) since the underlying distribution is chosen equiprobably. Similarly, if \(P\) and \(Q\) have disjoint support, \(d_{\TV}(P,Q) = 1\) and the sample \(x\) comes almost surely from \(P\) if \(x\in\operatorname{supp}(P)\) and similarly for \(Q\). Thus the failure probability is \(0 = \tfrac{1}{2} - \tfrac{1}{2}d_{\TV}(P,Q)\) and the bound is tight from both directions.
+
+        <p><em>Proof:</em> [Proof of Lemma 1]
+            First assume that the decision algorithm is deterministic. Any such decision algorithm which takes in a sample \(x\) and decides whether it came from \(P\) or \(Q\) can be represented as a function \(f : \Omega \to \{0,1\}\), where \(f(x) = 1\) characterizes the algorithm asserting that the sample \(x\) came from the distribution \(P\). Let \(A_P = \{x\in\Omega : f(x) = 1\}\) and \(A_Q = \Omega - A_P\). The probability our algorithm succeeds is
+            \begin{align*}
+                p = \frac{1}{2}\P(x \in A_P | x\sim P) + \frac{1}{2}\P(x\in A_Q | x\sim Q) &= \frac{1}{2}\int_{A_P} dP + \frac{1}{2}\int_{A_Q}dQ\\
+                &= \frac{1}{2}\int_{A_P} dP - \frac{1}{2}\int_{A_P}dQ + \frac{1}{2}\int_{A_Q}dQ + \frac{1}{2}\int_{A_P}dQ\\
+                &= \frac{1}{2} + \frac{1}{2} \int_{A_P}\bigl(dP - dQ\bigr).
+            \end{align*}
+            By two applications of the triangle inequality,
+            \[
+                p \leq \frac{1}{2} + \frac{1}{2}\int_{A_P} \bigl|dP - dQ\bigr| \leq \frac{1}{2} + \frac{1}{2}\int_{\Omega}\bigl|dP - dQ\bigr| = \frac{1}{2} + \frac{1}{2}d_{\TV}(P,Q)
+            \]
+            as desired. If, on the other hand, our decision algorithm is random, we can identify it with a family \(\{f_\alpha\}_{\alpha\in\Gamma}\) of deterministic decision functions and an underlying measure \(\mu\) on \(\Gamma\). The algorithm samples a function \(f_\alpha\) according to \(\mu\) before returning the decision corresponding to \(f_\alpha(x)\). The success probability of this algorithm is
+            \[
+                q = \E_{\alpha} \P(f_\alpha(x)\text{ is correct}| \alpha) \leq \E_{\alpha}\bigl(\frac{1}{2} + \frac{1}{2}d_{\TV}(P,Q)\bigr) = \frac{1}{2} + \frac{1}{2}d_{\TV}(P,Q)
+            \]
+            as in the deterministic case. Thus the failure probability
+            \[
+                1-q \geq \frac{1}{2} - \frac{1}{2}d_{\TV}(P,Q)
+            \]
+            and the proof is complete.
+        </p>
+
+        <h2>The Sample Compexity Lower Bound</h2>
+
+        To prove our sample complexity we start with a simple classification problem, parametrized by \(\epsilon\) and \(\delta\), that turns out to be easier than finding an \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver. Then we will show that this classification problem requires \(\Omega(nd)\) queries to its oracle, which directly gives us our desired lower bound.
+
+        <p><strong>Definition:</strong> [Distinguishing Matrices]
+            In this setting we are given two distributions over matrices of dimension \(d\times n\) where \(n\) is even:
+            <ul>
+                <li>\(P\): \(\A \in\{0,1\}^{d\times n}\) is distributed so that \(\A_{ij}\sim \Bernoulli(\tfrac{2k}{nd})\) independently and identically for all \(i\) and \(j=1,2,\ldots,n/2\) and \(A_{ij} = 0\) uniformly otherwise.</li>
+                <li>\(Q\): \(\A \in\{0,1\}^{d\times n}\) is distributed so that \(\A_{ij}\sim \Bernoulli(\tfrac{2k}{nd})\) independently and identically for all \(i\) and \(j=n/2+1,\ldots,n\) and \(A_{ij} = 0\) uniformly otherwise.</li>
+            </ul>
+            We have a sample \(\A\) from either \(P\) or \(Q\), chosen with equal probability, and an algorithm is asked to distinguish whether the sample \(\A\) came from \(P\) or \(Q\) by sequentially submitting indices \((i,j)\) to \(\A\) from which an oracle responds with \(\A_{ij}\). This problem will be called \(k\)-\(\mathsf{DIST}\) and algorithms constructed to solve \(k\)-\(\mathsf{DIST}\) can be with the same state-query representation we describe the trace estimators with.
+        </p>
+
+        The following Lemma says that the above problem of distinguishing matrices is indeed easier than finding an \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver.
+
+        <p><strong>Lemma 2:</strong>
+            Let \(\epsilon < 1\), \(k \geq \log\tfrac{4}{\delta}\), and \(nd\) sufficiently large. Any \((\epsilon,\delta/2)\)-\(\mathsf{MIPS}\) solver using at most \(q\) queries provides an algorithm for solving \(k\)-\(\mathsf{DIST}\) with failure probability at most \(\delta\) in the same number of samples.
+        </p>
+        <p><em>Proof:</em> 
+            Let \(\A\) be our sample from the \(\mathsf{DIST}\) problem, and and let \(\hat i_\star\) be the result of our \(\mathsf{MIPS}\) solver applied with \(\u_i\) being the \(i\)-th column of \(\A\) and \(\v=\e\) being the vector of all ones. \(\A\) will have a value of \(1\) somewhere in the matrix with probability \(1 - (1 - \tfrac{2k}{nd})^{nd/2} \geq 1 - 2e^{-k} \geq 1-\delta/2\) for sufficiently large \(nd\). In this case that a one exists, the returned index \(\hat i_\star\) will satisfy $$\inner{\v,\u_{\hat i_\star}} \geq (1-\epsilon)\max_{i\in[n]}\inner{\v,\u_i} \geq (1-\epsilon) > 0,$$ with probability at least \(1-\delta/2\). In other words, the \(\hat i_\star\)-th column of \(\A\) has a one in it except with probability at most \(\delta/2 + \delta/2 = \delta\).
+
+            In the case that \(\A\sim P\), the only ones in \(\A\) can occur for columns \(i\) with \(i \leq n/2\). On the other hand, if \(\A\sim Q\) then the only ones in \(\A\) can occur at column \(i\) with \(i > n/2\). Thus, the function
+            \[
+                D(\A) = \begin{cases}
+                    P & \text{if \(h(\A_{:,1},\A_{:,2},\ldots,\A_{:,n},\e) \leq n/2\)}\\
+                    Q & \text{otherwise}
+                \end{cases}
+            \]
+            will return the correct answer to \(k\)-\(\mathsf{DIST}\) with probability at least \(1-\delta\), as desired.
+        </p>
+
+        Thus, to prove that an \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver needs \(\Omega(nd)\) queries we can show that this many queries are needed to solve \(k\)-\(\mathsf{DIST}\) in the family. This relies on Lemma 1.
+
+        <p><strong>Theorem 3:</strong>
+            Any algorithm used to solve \(k\)-\(\mathsf{DIST}\) with failure probability at most \(\delta\) needs to use at least $$q \geq \frac{\log\tfrac{1}{2\delta}}{\log\tfrac{1}{1-\tfrac{2k}{nd}}}$$ queries to the oracle. For \(k = o(nd)\) and sufficiently large \(nd\), this implies the number of queries $$q \geq \frac{nd}{4k}\log\frac{1}{2\delta}.$$
+        </p>
+        <p><em>Proof:</em> 
+            Suppose we have an algorithm which can solve \(k\)-\(\mathsf{DIST}\) with failure probability at most \(\delta\) using no more than \(q\) queries to the oracle. Conditional on the query sequence \((i_1,j_1),\ldots,(i_q,j_q)\) made by the algorithm on an input, the set of oracle responses are equivalent in distribution to a sample from the distribution \(\Bernoulli(0)^{\otimes q_1} \otimes \Bernoulli(\tfrac{2k}{nd})^{\otimes q_2}\) where \(q_1\leq q\) is the number of queries with \(i_\ell \leq n/2\) if \(\A\sim P\) or \(i_\ell > n/2\) is \(\A\sim Q\), and \(q_2 = q - q_1\). In particular, \(\max\{q_1,q_2\} \leq q\), and so unconditionally on the query sequence, any algorithm for this problem must fail with probability at least as high as the smallest failure probability of an algorithm which distinguishes from the following two distributions over length \(2q\) bit vectors via one sample chosen uniformly at random from \(P'\) or \(Q'\):
+            <ul>
+                <li>\(P'\): \(\Bernoulli(0)^{\otimes q} \otimes \Bernoulli(\tfrac{2k}{nd})^{\otimes q}\),</li>
+                <li>\(Q'\): \(\Bernoulli(\tfrac{2k}{nd})^{\otimes q} \otimes \Bernoulli(0)^{\otimes q}\).</li>
+            </ul>
+
+            By Lemma 1, this logic implies that any algorithm which solves \(k\)-\(\mathsf{DIST}\) in \(q\) samples must fail with probability at least \(\tfrac{1}{2} - \tfrac{1}{2}d_\TV(P',Q')\). To calculate the total variation distance, we can note that for any \(\a\in \{0,1\}^{2q}\), the probability that a sample from \(P'\) equals \(\a\) is $$P'(\a) = \mathbf{1}[\a_{i} = 0 \text{ for all }i > q]\prod_{i=1}^{q}(\tfrac{2k}{nd})^{\a_{i}}(1-\tfrac{2k}{nd})^{1-\a_{i}}.$$ Similarly, the probability a sample from \(Q'\) equals \(\a\) is $$Q'(\a) = \mathbf{1}[\a_{i} = 0 \text{ for all }i\text{ with }i \leq q]\prod_{i=q+1}^{2q}(\tfrac{2k}{nd})^{\a_{i}}(1-\tfrac{2k}{nd})^{1-\a_{i}}.$$ By symmetry, these formulae imply the total variation distance
+            \begin{align*}
+                d_{\TV}(P',Q') &= \tfrac{1}{2}\sum_{\a\in\{0,1\}^{2q}} |P'(\a) - Q'(\a)|\\
+                &= \sum_{\substack{\a\in\{0,1\}^{2q}\\ \a_{1}=\cdots=\a_q=0 \\ \text{some }\a_i=1}}Q'(\a)\\
+                &= 1 - \P(\a_1=\cdots=a_{2q}=0 | \a\sim Q')\\
+                &= 1 - (1 - \tfrac{2k}{nd})^{q}.
+            \end{align*}
+            It follows that this algorithm for \(k\)-\(\mathsf{DIST}\) must fail with probability at least
+            \[
+                \frac{1}{2} - \frac{1}{2}\bigl(1 - (1 - \tfrac{2k}{nd})^{q}\bigr) = \frac{1}{2}(1 - \tfrac{2k}{nd})^q.
+            \]
+            But we assumed the failure probability was at <em>most</em> \(\delta\). Thus
+            \[
+                \frac{1}{2}(1 - \tfrac{2k}{nd})^q \leq \text{failure probability} \leq \delta.
+            \]
+            In other words,
+            \[
+                q \geq \frac{\log\tfrac{1}{2\delta}}{\log\tfrac{1}{1-\tfrac{2k}{nd}}}.
+            \]
+            To see the asymptotic estimation
+            \[
+                q \geq \frac{nd}{4k}\log\tfrac{1}{2\delta}
+            \]
+            if \(k = o(nd)\) and \(nd\) is sufficiently large, observe that \(k = o(nd)\) implies that \(\tfrac{2k}{nd} \to 0\) as \(nd\to\infty\), which in turn ensures that for \(n \geq 2k\), $$\log\tfrac{1}{1-\tfrac{2k}{nd}} = \log\bigl(1 + \tfrac{2k}{nd} + O((\tfrac{2k}{nd})^2)\bigr) \sim \frac{2k}{nd}.$$ Rearranging and deflating the resulting asymptotic bound by a factor of \(\tfrac{1}{2}\) gives the desired result.
+        </p>
+
+        In light of Lemma 2 and Theorem 3 we can directly give the corresponding lower bound for the sample complexity of an \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver.
+
+        <p><strong>Theorem 4:</strong>
+            Suppose \(\epsilon < 1\) and fix \(\delta < 1/20\). Any \((\epsilon,\delta)\)-\(\mathsf{MIPS}\) solver requires greater than \(\tfrac{nd}{16}\) queries to the sampling oracle if \(nd\) is sufficiently large.
+        </p>
+        <p><em>Proof:</em> 
+            By Lemma 2, an \((\epsilon,\delta/2)\)-\(\mathsf{MIPS}\) solver using at most \(q\) sampling oracle queries can be used to generate an algorithm for \(k\)-\(\mathsf{DIST}\) which uses at most \(q\) oracle queries and fails with probability at most \(\delta\), so long as \(k \geq \log\tfrac{4}{\delta}\) and \(nd\) is large enough. In particular, the algorithm solves \(\lceil \log \tfrac{4}{\delta}\rceil\)-\(\mathsf{DIST}\) with these properties for large enough \(nd\).
+
+            Since \(\delta\) is a constant, Theorem 3 ensures that this \((\epsilon,\delta/2)\)-\(\mathsf{MIPS}\) solver requires
+            \[
+                q \geq \frac{nd}{4k}\log\frac{1}{2\delta} = \frac{nd}{4}\frac{\log\tfrac{1}{\delta} + \log\tfrac{1}{2}}{\lceil\log\tfrac{1}{\delta} + \log 4\rceil} \geq \frac{nd}{16}
+            \]
+            so long as \(nd\) is large enough and \(\log\tfrac{1}{\delta}\geq 2\), or \(\delta \leq e^{-2}\). Observing that \(1/20 < e^{-2}/2\) and replacing \(\delta/2\) with \(\delta\) in the bound gives the reported result.
+        </p>
+
+        <h2>Conclusion</h2>
+
+        The work of Liu et al. [1] showed that one could get an additive \(d\epsilon\)-approximate solution to the \(\mathsf{MIPS}\) problem with high probability via \(\mathcal{O}(n\sqrt{d})\) samples to coordinates \(\u_{ij}\). One might hope to get a sublinear time sampling-based \(\mathsf{MIPS}\) solver whose error does not scale with the underlying dimension. This work shows that this is impossible, at least for \(\epsilon\)-<em>relative</em> error: any \(\mathsf{MIPS}\) solver must sample at least \(\Omega(nd)\) of the \(\mathcal{O}(nd)\) available coordinates \(\u_{ij}\), even if the coordinates are all bounded in the interval \([0,1]\).
+
+        The question of whether an \(\mathcal{O}(n\sqrt{d})\) time solution to \(\mathsf{MIPS}\) with an additive error \(d\epsilon\) is optimal is still open, however. This is left for future work.
+
+        <h3>References.</h3>
+
+        <ol>
+            <li><em>A Bandit Approach to Maximum Inner Product Search</em> by Rui Liu, Tianyi Wu, and Barzan Mozafari. <em>In Proceedings of the AAAI Conference on Artificial Intelligence</em>, Vol. 33, pp. 4376-4383, 2019.</li>
+            <li><em>Optimal Query Complexity for Estimating the Trace of a Matrix</em> by Karl Wimmer, Yi Wu, and Peng Zhang. <em>International Colloquium on Automata, Languages, and Programming</em>, pp. 1051-2062, 2014.
+        </ol>
+
+        <p>Date: August 11, 2019</p>
+        <p><a href="index.html">Back to the Blog Home.</a></p>
+    </div>
+</body>
+</html>
