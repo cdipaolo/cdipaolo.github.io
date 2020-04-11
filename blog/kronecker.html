@@ -183,7 +183,7 @@
                 Compute Z = transpose(A[r] \ transpose(y))
 
                 for each column i = 1,2,...,c
-                    Compute X[:,i] = kronmatvec(A[r-1,...,1],Z[:,i])
+                    Compute X[:,i] = kronsolve(A[r-1,...,1],Z[:,i])
                 end
 
                 return vec(X)
