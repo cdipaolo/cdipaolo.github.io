@@ -29,6 +29,19 @@
   padding: 1.5em 0em 0.5em 1em;
 }
 
+.figure {
+  max-width: 30em;
+  display: block;
+  margin: auto;
+  padding: 1em;
+  text-align: center;
+}
+.figure > img {
+  width: 20em;
+  display: block;
+  margin: auto;
+}
+
 .plot {
   max-width: 30em;
   display: block;
@@ -45,6 +58,13 @@ td {
 }
 
 @media (max-width: 1000px) {
+  .figure {
+    max-width: 100%;
+  }
+  .figure > img {
+    width: 100%;
+  }
+
   td,th {
     white-space: nowrap;
     font-size: xx-large;

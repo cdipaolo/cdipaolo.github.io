@@ -1,0 +1,84 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Conner DiPaolo</title>
+  <meta name="description" content="Conner DiPaolo's Personal Website">
+  <meta name="author" content="Conner DiPaolo">
+
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS_CHTML' async></script>
+</head>
+
+<body>
+    <div class="page-body">
+        <img src="../img/candlestick-park-boats.jpg" alt="View from Candlestick Park" class="sub-page-main-photo">
+        <div class="info-container">
+            <h1>Conner DiPaolo's Blog</h1>
+            <h2>Reading Notes.</h2>
+	    <p>
+	    This blog will collect thoughts on books and articles I'm reading.
+	    </p>
+            <p>
+	    <em>Table of Contents:</em>
+	    <div id="toc"></div>
+            </p>
+	    <hr style="border: none; height: 1px; background-color: black; width: 50%; margin: auto;">
+
+	    <h3>Process at the Expense of Progress: <em>Abundance</em></h3>
+            <p>
+	    <em>April 19, 2025.</em>
+	    I've been reading Ezra Klein and Derek Thompson's great book <em>Abundance</em> which came out last month. The thesis is that the Democrat Party has focused too much on process as the definition of good governance at the expense of outcomes and vision. They argue that despite good intentions, repeated failures in execution on government initiatives have disillusioned voters, despite those failures being completely self-imposed and preventable. Examples from the book include
+            </p>
+	    <ul>
+	        <li>High speed rail in California ($13B invested with zero functional miles of rail line constructed 16 years later)</li>
+	        <li>Rural broadband expansion under Biden ($40B earmarked with zero homes connected 4 years later)</li>
+	        <li>California's homeless problem (despite $57k spent per homeless person in e.g. San Francisco, 35% higher than the average annual rent in the city)</li>
+	    </ul>
+	    <p>
+	    The book articulates core reasons for failure as snail-paced approval processes stemming from the 70s environmental movement and pro-housing price legislation, combined with stacking on too many stipulations onto government funding. For example of the former, it takes two years on average (!) to get a permit to start building a home in San Francisco. For the latter, Obama-era federal funding stipulations for the high speed rail program required starting building in areas where "marginalized communities are disproportionately affected by elevated pollution levels" (i.e., Bakersfield/Merced), despite those areas having the least demand and generating the least political capital compared to the LA-SF line everyone would use. They suggest that beyond just wasting taxpayer money, these failures create a track record of incompetence that deters further action altogether. Unlike all other G7 countries, trust in America's institutions has fallen - by 13 points - since 2006:
+	    </p>
+	    <div class="figure">
+                <img src="../img/plots/20250419_economist_confidence_in_institutions.jpg">
+	        Credit: The Economist (<a href="https://www.economist.com/united-states/2024/04/17/americas-trust-in-its-institutions-has-collapsed">link</a>)
+	    </div>
+	    <p>
+	    Some level of process is necessary, but the pendulum has swung too far towards paralysis. One great quote from Gov. Gavin Newsom's interview with Ezra about the book was Newsom bragging about how effective the government was in acting under emergency powers after the recent LA fires. Ezra replied to the effect of, "if the government works better under emergency powers, why isn't that the default process?"
+	    </p>
+	    <p>
+	    As a pro-growth, pro-business centrist, this perspective strongly resonated with me. It may be confirmation bias and wishful thinking, but this felt like a version of the Democrat Party that could really attract voters. Instead of focusing on the <em>"raising the floor"</em> vs. <em>"raising the ceiling"</em> dichotomy of the past 40 years, let's spell out a clear vision to rebuild the post-WWII social mobility that America once stumbled into, and execute relentlessly on that. Voters should be choosing which vision for the future they want — not the politician least likely to fumble it.
+	    </p>
+
+            <p><a href="index.html">Back to the Blog Home.</a></p>
+        </div>
+    </div>
+</body>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const toc = document.getElementById("toc");
+  const ul = document.createElement("ul");
+  const ids = new Set();
+
+  document.querySelectorAll("h3").forEach(h3 => {
+    const id = h3.textContent.toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+
+    if (!ids.has(id)) {
+      ids.add(id);
+      h3.id = id;
+
+      const li = document.createElement("li");
+      li.innerHTML = `<a href="#${id}">${h3.textContent}</a>`;
+      ul.appendChild(li);
+    } else {
+      throw new Error(`Duplicate <h3> text: "${h3.textContent}"`);
+    }
+  });
+
+  toc.appendChild(ul);
+});
+</script>
+</html>
